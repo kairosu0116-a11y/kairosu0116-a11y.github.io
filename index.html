@@ -14,7 +14,7 @@ header{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);padding:15px 
 .brand{display:flex;align-items:center;gap:10px;max-width:1100px;margin:auto}.brandicon{width:40px;height:40px;border-radius:12px;background:#eee6d9;display:grid;place-items:center;font-size:21px}.brandtext h1{margin:0;font-size:20px;letter-spacing:.02em}.sub{font-size:12px;color:var(--muted);margin-top:2px}
 #map{height:46vh;min-height:330px;background:#e8e4dc}
 .panel{max-width:1100px;margin:-20px auto 0;position:relative;z-index:500;background:var(--surface);border-radius:22px 22px 0 0;padding:18px;box-shadow:0 -5px 25px rgba(40,32,22,.08)}
-.controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.locationSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}.locationSearch input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px}.searchbtn{border:1px solid var(--line);background:#765c3c;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.locationHint{font-size:11px;color:var(--muted);margin-top:6px}.mainbtn{border:0;background:var(--ink);color:#fff;border-radius:13px;padding:13px 16px;font-size:14px;font-weight:700;width:100%;cursor:pointer;box-shadow:0 4px 12px rgba(41,38,34,.18);transition:.15s}.mainbtn:active{transform:translateY(1px)}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.locationSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}.locationSearch input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px}.searchbtn{border:1px solid var(--line);background:#765c3c;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.locationHint{font-size:11px;color:var(--muted);margin-top:6px}.placeCandidates{display:grid;gap:7px;margin-top:10px}.placeCandidate{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-align:left;font-size:13px;cursor:pointer}.placeCandidate:active{background:#f5f1e8}.placeCandidate small{display:block;color:var(--muted);font-size:11px;margin-top:3px}.placeCandidate strong{white-space:nowrap;color:var(--accent)}.mainbtn{border:0;background:var(--ink);color:#fff;border-radius:13px;padding:13px 16px;font-size:14px;font-weight:700;width:100%;cursor:pointer;box-shadow:0 4px 12px rgba(41,38,34,.18);transition:.15s}.mainbtn:active{transform:translateY(1px)}
 .statusbox{margin:12px 0 14px;padding:11px 13px;background:#faf8f3;border:1px solid var(--line);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.55}
 .legend{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 9px;font-size:11px;color:#5d5750}.pill.history{border-color:#d8c8b2;background:#faf6ef}.pill.museum{border-color:#cbd9cf;background:#f3f7f3}
 #cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.eraFilters{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}.eraBtn{border:1px solid var(--line);background:#fff;color:#5d5750;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}.eraBtn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -41,6 +41,7 @@ a{color:#5b6e83}
   <button class="searchbtn" id="placeSearchBtn">🔎 場所を検索</button>
 </div>
 <div class="locationHint">または、上の地図をタップして検索地点を選択できます。日本国内のみ対応しています。</div>
+<div id="placeCandidates" class="placeCandidates" aria-live="polite"></div>
 <div id="status" class="statusbox">現在地を取得するか、国内の場所を入力・地図上で選択すると、その地点を起点に半径5km以内を検索します。</div>
 <div class="legend"><span class="pill history">🏯 史跡</span><span class="pill museum">🏛️ 博物館・美術館</span><span class="pill">📍 現在地から近い順</span><span class="pill">✓ 場所を照合</span></div>
 <div class="eraFilters" aria-label="時代で絞り込む"><button class="eraBtn active" data-era="all">すべて</button><button class="eraBtn" data-era="ancient">古代</button><button class="eraBtn" data-era="medieval">中世</button><button class="eraBtn" data-era="earlymodern">近世</button><button class="eraBtn" data-era="modern">近代</button><button class="eraBtn" data-era="contemporary">現代</button></div>
@@ -120,33 +121,72 @@ async function searchNearby(lat,lon,label='検索地点'){
 function isJapanCoord(lat,lon){
   return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=24&&lat<=46.2&&lon>=122&&lon<=153.9;
 }
+let locating=false;
+function locateOnce(options){
+ return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,options));
+}
 window.findHistory=async function(){
+ if(locating)return;
  if(!navigator.geolocation){showError('このブラウザでは位置情報を取得できません。Chromeなどのブラウザで開いてください。');return}
  if(!window.isSecureContext){showError('位置情報を使うにはHTTPSなどの安全な接続が必要です。このファイルをChatGPTアプリ内ではなく、Chromeで開いてください。');return}
- setStatus('📍 現在地を取得しています…（位置情報の許可が表示されたら「許可」を押してください）');
- document.getElementById('cards').innerHTML='<div class="loading">📍 GPSを確認中…</div>';
- navigator.geolocation.getCurrentPosition(async pos=>{
+ locating=true;
+ const button=document.querySelector('.mainbtn');
+ if(button){button.disabled=true;button.textContent='📍 現在地を取得しています…';}
+ setStatus('📍 位置情報を取得しています…');
+ document.getElementById('cards').innerHTML='<div class="loading">📍 端末の位置情報を確認中…</div>';
+ try{
+   let pos;
+   try{
+     // まず高速なネットワーク測位・直近の位置情報を優先する。
+     pos=await locateOnce({enableHighAccuracy:false,timeout:10000,maximumAge:120000});
+   }catch(firstError){
+     if(firstError?.code===1)throw firstError;
+     setStatus('📍 位置情報を再確認しています…');
+     // 最初の取得に失敗した場合だけGPS精度を上げて再試行。
+     pos=await locateOnce({enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+   }
    const lat=pos.coords.latitude,lon=pos.coords.longitude;
    if(!isJapanCoord(lat,lon)){showError('現在地が日本国内として認識できませんでした。');return}
    if(map){
      if(userMarker)map.removeLayer(userMarker);
      userMarker=L.circleMarker([lat,lon],{radius:9}).addTo(map).bindPopup('現在地').openPopup();
    }
+   const accuracy=Math.round(pos.coords.accuracy||0);
+   setStatus('📍 現在地を取得しました（推定誤差 約'+accuracy+'m）。周辺を検索しています…');
    await searchNearby(lat,lon,'現在地');
- },err=>{
-   const msg=err?.code===1?'位置情報の使用が拒否されています。ブラウザのサイト設定で位置情報を「許可」にしてください。':err?.code===2?'現在地を取得できませんでした。GPS・Wi-Fiをオンにして、もう一度試してください。':err?.code===3?'現在地の取得がタイムアウトしました。屋外などGPSを受信しやすい場所でもう一度試してください。':'位置情報を取得できませんでした。もう一度お試しください。';
+ }catch(err){
+   const msg=err?.code===1?'位置情報の使用が拒否されています。Androidの設定とChromeのサイト設定で位置情報を許可してください。':err?.code===2?'位置情報を取得できませんでした。端末の位置情報（GPS）とWi-Fiをオンにして、窓際や屋外でもう一度お試しください。':err?.code===3?'位置情報の取得がタイムアウトしました。端末の位置情報をオンにして、もう一度お試しください。':'位置情報を取得できませんでした。Chromeで開き、位置情報の権限を確認してください。';
    showError(msg);
- },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+ }finally{
+   locating=false;
+   if(button){button.disabled=false;button.textContent='📍 現在地を取得して周辺を検索';}
+ }
+}
+function prefectureFromName(name){
+ const m=String(name||'').match(/(北海道|東京都|京都府|大阪府|.{2,3}県)/);
+ return m?m[1]:'都道府県不明';
+}
+async function choosePlaceCandidate(index){
+ const list=window.__placeCandidates||[];
+ const chosen=list[index];
+ if(!chosen)return;
+ const box=document.getElementById('placeCandidates');
+ if(box)box.innerHTML='';
+ if(originMarker&&map)map.removeLayer(originMarker);
+ if(map){originMarker=L.circleMarker([chosen.lat,chosen.lon],{radius:9}).addTo(map).bindPopup(esc(chosen.name)).openPopup();}
+ await searchNearby(chosen.lat,chosen.lon,chosen.name);
 }
 async function searchPlaceByText(){
  const input=document.getElementById('placeInput');
  const q=String(input?.value||'').trim();
  if(!q){showError('検索する国内の場所を入力してください。');return;}
  if(q.length>100){showError('場所の入力は100文字以内にしてください。');return;}
+ const box=document.getElementById('placeCandidates');
+ if(box)box.innerHTML='';
  setStatus('🔎 場所を検索しています…');
  document.getElementById('cards').innerHTML='<div class="loading">📍 入力した場所を地図上で探しています…</div>';
  try{
-   // 国土地理院地図の地名検索機能を、ユーザーが明示的に検索したときだけ利用する。
+   // 国土地理院の検索結果を候補として表示し、同名地名は都道府県を選べるようにする。
    const u='https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q);
    const r=await fetch(u); if(!r.ok)throw 0;
    const data=await r.json();
@@ -154,14 +194,27 @@ async function searchPlaceByText(){
    const candidates=results.map(x=>{
      const c=x?.geometry?.coordinates||x?.coordinates;
      const lon=Number(c?.[0]),lat=Number(c?.[1]);
-     return {lat,lon,name:x?.properties?.title||x?.properties?.address||x?.properties?.name||q};
+     const name=x?.properties?.title||x?.properties?.address||x?.properties?.name||q;
+     return {lat,lon,name,prefecture:prefectureFromName(name)};
    }).filter(x=>isJapanCoord(x.lat,x.lon));
-   if(!candidates.length)throw 0;
-   const best=candidates[0];
-   if(originMarker&&map)map.removeLayer(originMarker);
-   if(map){originMarker=L.circleMarker([best.lat,best.lon],{radius:9}).addTo(map).bindPopup(esc(best.name)).openPopup();}
-   await searchNearby(best.lat,best.lon,best.name);
+   // 同一地点の重複候補を除去
+   const unique=[];
+   for(const c of candidates){if(!unique.some(v=>Math.abs(v.lat-c.lat)<0.00001&&Math.abs(v.lon-c.lon)<0.00001))unique.push(c);}
+   if(!unique.length)throw 0;
+   window.__placeCandidates=unique;
+   const prefectures=new Set(unique.map(x=>x.prefecture));
+   if(unique.length>1 && (prefectures.size>1 || unique.length<=8)){
+     if(box){
+       box.innerHTML='<div class="locationHint">同じ地名・似た地名の候補が見つかりました。検索したい場所の都道府県を選んでください。</div>'+unique.slice(0,12).map((c,i)=>`<button type="button" class="placeCandidate" data-place-index="${i}"><span><strong>${esc(c.prefecture)}</strong><small>${esc(c.name)}</small></span><span aria-hidden="true">選択 ›</span></button>`).join('');
+       box.querySelectorAll('[data-place-index]').forEach(btn=>btn.addEventListener('click',()=>choosePlaceCandidate(Number(btn.dataset.placeIndex))));
+     }
+     setStatus('候補を選択してください。選択した場所を起点に周辺を検索します。');
+     document.getElementById('cards').innerHTML='';
+     return;
+   }
+   await choosePlaceCandidate(0);
  }catch(e){
+   if(box)box.innerHTML='';
    showError('場所を検索できませんでした。市区町村名・駅名・施設名・住所など、もう少し具体的に入力して再検索してください。');
  }
 }
@@ -357,34 +410,23 @@ async function wikiSearch(name,la,lo){
 async function verifyAndRender(items,lat,lon,label='検索地点'){
  document.getElementById('status').textContent='史跡と博物館・美術館の情報を照合しています…';
  const verified=[];
- for(let i=0;i<items.length;i+=5){
-  const batch=items.slice(i,i+5);
-  const results=await Promise.all(batch.map(async p=>{
-   if(p.kind==='museum') return {p,w:await wikiSearch(p.name,p.la,p.lo)};
-   return {p,w:await wikiSearch(p.name,p.la,p.lo)};
-  }));
+ // 5件ずつ直列に近い照合を行う方式から、12件ずつの並列照合に変更。
+ for(let i=0;i<items.length;i+=12){
+  const batch=items.slice(i,i+12);
+  const results=await Promise.all(batch.map(async p=>({p,w:await wikiSearch(p.name,p.la,p.lo)})));
   for(const x of results){
-   // Museums/galleries are allowed when they are explicitly mapped as such and have a reliable public information page.
-   // Historic sites require coordinate-matched Wikipedia verification as before.
    if(x.p.kind==='museum'){
-    // Museums/galleries use their OSM facility coordinates as the primary location.
-    // Wikipedia coordinate matching is used when available, but is not required;
-    // this prevents legitimate nearby museums without a Wikipedia article from disappearing.
     if(museumVerified(x.p)) verified.push({...x.p,w:x.w});
    }else if(x.w && x.w.text && x.w.sourceDistance<=0.75){
-    // Historic sites retain strict Wikipedia coordinate verification.
     verified.push({...x.p,w:x.w});
    }
   }
+  verified.sort((a,b)=>a.d-b.d);
+  allItems=verified;
+  // 最初の照合結果を先に表示し、残りの確認中も画面を利用できるようにする。
+  if(i===0)render(verified,lat,lon);
  }
- // 予算フィルターで使う料金は、事前に取得できる公開情報だけを保存する。
- await Promise.all(verified.map(async p=>{
-   const official=officialUrl(p.t||{});
-   if(official){
-     const text=await fetchOfficialText(official);
-     if(text)p._officialText=text;
-   }
- }));
+ // 公式サイトの本文は検索時に全施設分取得せず、施設詳細を開いた時点で取得する。
  verified.sort((a,b)=>a.d-b.d);
  allItems=verified; currentLat=lat; currentLon=lon; activeEra='all'; document.querySelectorAll('.eraBtn').forEach(b=>b.classList.toggle('active',b.dataset.era==='all'));
  render(verified,lat,lon);
