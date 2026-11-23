@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>むかしマップ｜史跡・博物館・美術館</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#f5f1e8;--surface:#fff;--ink:#292622;--muted:#746f68;--line:#e7e0d5;--accent:#765c3c;--accent2:#4f6b52;--shadow:0 8px 28px rgba(52,43,31,.10)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans JP","Yu Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+header{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);padding:15px 18px 13px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1000}
+.brand{display:flex;align-items:center;gap:10px;max-width:1100px;margin:auto}.brandicon{width:40px;height:40px;border-radius:12px;background:#eee6d9;display:grid;place-items:center;font-size:21px}.brandtext h1{margin:0;font-size:20px;letter-spacing:.02em}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+#map{height:46vh;min-height:330px;background:#e8e4dc}
+.panel{max-width:1100px;margin:-20px auto 0;position:relative;z-index:500;background:var(--surface);border-radius:22px 22px 0 0;padding:18px;box-shadow:0 -5px 25px rgba(40,32,22,.08)}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.locationSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}.locationSearch input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px}.searchbtn{border:1px solid var(--line);background:#765c3c;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.locationHint{font-size:11px;color:var(--muted);margin-top:6px}.placeCandidates{display:grid;gap:7px;margin-top:10px}.placeCandidate{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-align:left;font-size:13px;cursor:pointer}.placeCandidate:active{background:#f5f1e8}.placeCandidate small{display:block;color:var(--muted);font-size:11px;margin-top:3px}.placeCandidate strong{white-space:nowrap;color:var(--accent)}.mainbtn{border:0;background:var(--ink);color:#fff;border-radius:13px;padding:13px 16px;font-size:14px;font-weight:700;width:100%;cursor:pointer;box-shadow:0 4px 12px rgba(41,38,34,.18);transition:.15s}.mainbtn:active{transform:translateY(1px)}
+.statusbox{margin:12px 0 14px;padding:11px 13px;background:#faf8f3;border:1px solid var(--line);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.55}
+.legend{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 9px;font-size:11px;color:#5d5750}.pill.history{border-color:#d8c8b2;background:#faf6ef}.pill.museum{border-color:#cbd9cf;background:#f3f7f3}
+#cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.eraFilters{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}.eraBtn{border:1px solid var(--line);background:#fff;color:#5d5750;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}.eraBtn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.timeControls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 14px;padding:10px 12px;background:#faf8f3;border:1px solid var(--line);border-radius:12px}
+.openFilter{font-size:12px;font-weight:700;cursor:pointer}.openFilter input{accent-color:#4f6b52;margin-right:6px}.budgetBox{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;font-weight:700}.budgetBox input{width:110px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}.budgetBox .yen{font-weight:700}.budgetHint{font-size:11px;color:var(--muted);font-weight:400}
+.timeNote{font-size:11px;color:var(--muted)}
+.timeStatus{margin-top:8px;padding:8px 9px;border-radius:9px;background:#f3f6f3;color:#4f6b52;font-size:12px;line-height:1.55}
+.timeStatus.warn{background:#fff5ed;color:#8a5a2f}.timeStatus.closed{background:#f6eeee;color:#8a4d4d}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;box-shadow:0 2px 9px rgba(50,40,30,.04)}.card:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:#d8cdbd}.head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.name{font-weight:750;font-size:16px;line-height:1.4}.walk{display:inline-flex;margin-top:7px;padding:5px 8px;border-radius:8px;background:#f3f6f3;color:#4f6b52;font-size:12px;font-weight:650}.dist{font-size:12px;color:var(--accent);white-space:nowrap;background:#f7f0e7;border-radius:999px;padding:4px 7px}.meta{font-size:11px;color:var(--muted);margin-top:5px}.desc{font-size:12px;line-height:1.6;margin-top:8px;color:#625d57}.more{display:none;border-top:1px solid var(--line);margin-top:12px;padding-top:12px}.more.open{display:block}.photo{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin:8px 0}.source{font-size:11px;color:var(--muted);line-height:1.55;margin-top:8px}.loading{text-align:center;padding:28px 12px;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:14px;grid-column:1/-1}
+.officialbox{background:#faf8f3;border:1px solid #e6dfd3;border-radius:12px;padding:11px 12px;margin:10px 0;font-size:13px;line-height:1.7}.officialtitle{font-weight:750;margin-bottom:6px}.pricegrid{white-space:pre-wrap}.officiallink{display:inline-flex;align-items:center;margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff;border:1px solid var(--line);text-decoration:none}.overview{background:#f5f1e8;border-left:4px solid var(--accent);border-radius:9px;padding:10px 11px;margin:9px 0;font-size:13px;line-height:1.65}.overviewtitle{font-weight:750;margin-bottom:3px}.era{font-weight:750;color:#59462e}.exhibit{background:#f5f7f5;border-radius:9px;padding:9px;margin-top:7px;font-size:12px;line-height:1.65}
+footer{max-width:1100px;margin:auto;padding:18px;color:var(--muted);font-size:11px;line-height:1.6}.notice{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+@media(max-width:700px){.locationSearch{grid-template-columns:1fr}.searchbtn{width:100%}header{padding:12px 14px}.brandicon{width:36px;height:36px}.brandtext h1{font-size:18px}#map{height:42vh;min-height:300px}.panel{margin-top:-16px;padding:15px 12px;border-radius:20px 20px 0 0}.controls{grid-template-columns:1fr}.mainbtn{font-size:14px;padding:14px 12px}#cards{grid-template-columns:1fr;gap:10px}.card{padding:13px}.name{font-size:15px}}
+@media(min-width:1101px){body{background:linear-gradient(180deg,#f5f1e8 0,#f5f1e8 46vh,#eee8de 46vh,#eee8de 100%)}#map{width:100%}}
+a{color:#5b6e83}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="brandicon">🏯</div><div class="brandtext"><h1>むかしマップ</h1><div class="sub">現在地または国内の任意地点から半径5kmの史跡・博物館・美術館を探す</div></div></div></header>
+<div id="map"></div>
+<section class="panel">
+<div class="controls"><button class="mainbtn" onclick="findHistory()">📍 現在地を取得して周辺を検索</button></div>
+<div class="locationSearch">
+  <input id="placeInput" type="text" placeholder="国内の場所を入力（例：東京駅、鎌倉市、金沢市木ノ新保町）" autocomplete="off">
+  <button class="searchbtn" id="placeSearchBtn">🔎 場所を検索</button>
+</div>
+<div class="locationHint">または、上の地図をタップして検索地点を選択できます。日本国内のみ対応しています。</div>
+<div id="placeCandidates" class="placeCandidates" aria-live="polite"></div>
+<div id="status" class="statusbox">現在地を取得するか、国内の場所を入力・地図上で選択すると、その地点を起点に半径5km以内を検索します。</div>
+<div class="legend"><span class="pill history">🏯 史跡</span><span class="pill museum">🏛️ 博物館・美術館</span><span class="pill">📍 現在地から近い順</span><span class="pill">✓ 場所を照合</span></div>
+<div class="eraFilters" aria-label="時代で絞り込む"><button class="eraBtn active" data-era="all">すべて</button><button class="eraBtn" data-era="ancient">古代</button><button class="eraBtn" data-era="medieval">中世</button><button class="eraBtn" data-era="earlymodern">近世</button><button class="eraBtn" data-era="modern">近代</button><button class="eraBtn" data-era="contemporary">現代</button></div>
+<div class="timeControls">
+  <label class="openFilter"><input id="openOnly" type="checkbox"> 本日営業・開館中の施設だけ表示</label>
+  <div class="budgetBox"><label for="budgetInput">💰 予算</label><input id="budgetInput" type="number" min="0" step="100" inputmode="numeric" placeholder="例：1000"><span class="yen">円以内</span><span class="budgetHint">確認できた入館料・拝観料などで絞り込み</span></div>
+  <div class="timeNote">現在時刻・徒歩時間・見学目安をもとに、閉館までに間に合うかも表示します。</div>
+</div>
+<div id="cards"></div>
+</section>
+<footer><div class="notice">情報は公開データから取得しています。開館時間・料金などは変更される場合があります。施設の最新情報は公式ホームページも確認してください。</div></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map=null;
+if(window.L){
+  map=L.map('map').setView([35.681,139.767],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(map);
+} else {
+  document.getElementById('map').innerHTML='<div style="padding:30px;text-align:center;color:#777">地図を読み込めませんでした。インターネット接続を確認して、ページを再読み込みしてください。</div>';
+}
+let userMarker=null,originMarker=null,markers=[],routeLayer=null,allItems=[],currentLat=null,currentLon=null,currentOriginLabel='検索地点',activeEra='all',openOnly=false,budgetLimit=null;
+function setStatus(msg){document.getElementById('status').textContent=msg;}
+function showError(msg){setStatus('⚠️ '+msg);document.getElementById('cards').innerHTML='<div class="loading">'+esc(msg)+'</div>';}
+const overpass='https://overpass-api.de/api/interpreter';
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function hav(a,b,c,d){const R=6371,rad=x=>x*Math.PI/180, x=rad(c-a),y=rad(d-b);const z=Math.sin(x/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(z));}
+function cleanType(t){if(!t)return'歴史スポット';if(t==='archaeological_site')return'遺跡';if(t==='castle')return'城跡';if(t==='castle_wall')return'城跡';if(t==='monument')return'記念碑';if(t==='memorial')return'記念碑';if(t==='ruins')return'遺跡';if(t==='wayside_shrine')return'道祖神・石碑';if(t==='church')return'教会';if(t==='temple')return'寺院';if(t==='shrine')return'神社';return t;}
+async function wiki(name){
+ try{
+  const u='https://ja.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(name);
+  const r=await fetch(u); if(!r.ok) throw 0; const j=await r.json();
+  return {text:j.extract||'',img:j.thumbnail?.source||'',url:j.content_urls?.desktop?.page||''};
+ }catch(e){return {text:'',img:'',url:''};}
+}
+async function commons(name){
+ try{
+  const q=encodeURIComponent(name);
+  const u='https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch='+q+'&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=700&format=json&origin=*';
+  const j=await (await fetch(u)).json(); const p=Object.values(j.query?.pages||{})[0];
+  return p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||'';
+ }catch(e){return '';}
+}
+async function searchNearby(lat,lon,label='検索地点'){
+  if(!isJapanCoord(lat,lon)){showError('日本国内の地点を選択してください。');return;}
+  currentLat=lat; currentLon=lon; currentOriginLabel=label;
+  if(map){
+    if(originMarker)map.removeLayer(originMarker);
+    originMarker=L.circleMarker([lat,lon],{radius:9}).addTo(map).bindPopup(esc(label)).openPopup();
+    map.setView([lat,lon],14);
+    markers.forEach(m=>map.removeLayer(m));markers=[];
+    if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}
+  }
+  document.getElementById('status').textContent='半径5km以内の歴史スポットを検索しています…';
+  document.getElementById('cards').innerHTML='<div class="loading">🔎 '+esc(label)+'の周辺を検索中…</div>';
+  const q=`[out:json][timeout:25];(nwr(around:5000,${lat},${lon})["historic"~"^(archaeological_site|castle|ruins|fort|fortification|battlefield|manor|city_gate|church|chapel|temple|monastery)$"];nwr(around:5000,${lat},${lon})["heritage"~"^(1|2|3|local)$"];nwr(around:5000,${lat},${lon})["amenity"="place_of_worship"]["religion"="shinto"];nwr(around:5000,${lat},${lon})["tourism"="museum"];nwr(around:5000,${lat},${lon})["tourism"="gallery"];nwr(around:5000,${lat},${lon})["amenity"="museum"];nwr(around:5000,${lat},${lon})["museum"];nwr(around:5000,${lat},${lon})["art_gallery"="yes"];nwr(around:5000,${lat},${lon})["building"="museum"];);out center tags;`;
+  try{
+    const r=await fetch(overpass,{method:'POST',body:'data='+encodeURIComponent(q)});
+    if(!r.ok)throw 0; const data=await r.json();
+    const seen=new Set(),items=[];
+    for(const e of data.elements){
+      const t=e.tags||{},name=t.name||t['name:ja']||t['name:en'];
+      if(!name)continue;
+      if(t.historic==='wayside_shrine' || t.historic==='memorial' || t.historic==='monument' || t.historic==='tomb' || t.historic==='boundary_stone' || t.historic==='milestone')continue;
+      if(isGenericReligiousName(name,t))continue;
+      const kind=isMuseum(t)?'museum':'history';
+      const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null||lo==null)continue;
+      const key=name+'|'+la.toFixed(5)+'|'+lo.toFixed(5);if(seen.has(key))continue;seen.add(key);
+      const d=hav(lat,lon,la,lo);if(d<=5)items.push({e,t,name,la,lo,d,kind});
+    }
+    items.sort((a,b)=>a.d-b.d);
+    verifyAndRender(items,lat,lon,label);
+  }catch(e){
+    document.getElementById('status').textContent='検索に失敗しました。通信環境やAPIの混雑をご確認ください。';
+    document.getElementById('cards').innerHTML='<div class="loading">周辺データを取得できませんでした。</div>';
+  }
+}
+function isJapanCoord(lat,lon){
+  return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=24&&lat<=46.2&&lon>=122&&lon<=153.9;
+}
+let locating=false;
+function locateOnce(options){
+ return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,options));
+}
+window.findHistory=async function(){
+ if(locating)return;
+ if(!navigator.geolocation){showError('このブラウザでは位置情報を取得できません。Chromeなどのブラウザで開いてください。');return}
+ if(!window.isSecureContext){showError('位置情報を使うにはHTTPSなどの安全な接続が必要です。このファイルをChatGPTアプリ内ではなく、Chromeで開いてください。');return}
+ locating=true;
+ const button=document.querySelector('.mainbtn');
+ if(button){button.disabled=true;button.textContent='📍 現在地を取得しています…';}
+ setStatus('📍 位置情報を取得しています…');
+ document.getElementById('cards').innerHTML='<div class="loading">📍 端末の位置情報を確認中…</div>';
+ try{
+   let pos;
+   try{
+     // まず高速なネットワーク測位・直近の位置情報を優先する。
+     pos=await locateOnce({enableHighAccuracy:false,timeout:10000,maximumAge:120000});
+   }catch(firstError){
+     if(firstError?.code===1)throw firstError;
+     setStatus('📍 位置情報を再確認しています…');
+     // 最初の取得に失敗した場合だけGPS精度を上げて再試行。
+     pos=await locateOnce({enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+   }
+   const lat=pos.coords.latitude,lon=pos.coords.longitude;
+   if(!isJapanCoord(lat,lon)){showError('現在地が日本国内として認識できませんでした。');return}
+   if(map){
+     if(userMarker)map.removeLayer(userMarker);
+     userMarker=L.circleMarker([lat,lon],{radius:9}).addTo(map).bindPopup('現在地').openPopup();
+   }
+   const accuracy=Math.round(pos.coords.accuracy||0);
+   setStatus('📍 現在地を取得しました（推定誤差 約'+accuracy+'m）。周辺を検索しています…');
+   await searchNearby(lat,lon,'現在地');
+ }catch(err){
+   const msg=err?.code===1?'位置情報の使用が拒否されています。Androidの設定とChromeのサイト設定で位置情報を許可してください。':err?.code===2?'位置情報を取得できませんでした。端末の位置情報（GPS）とWi-Fiをオンにして、窓際や屋外でもう一度お試しください。':err?.code===3?'位置情報の取得がタイムアウトしました。端末の位置情報をオンにして、もう一度お試しください。':'位置情報を取得できませんでした。Chromeで開き、位置情報の権限を確認してください。';
+   showError(msg);
+ }finally{
+   locating=false;
+   if(button){button.disabled=false;button.textContent='📍 現在地を取得して周辺を検索';}
+ }
+}
+function prefectureFromName(name){
+ const prefectures=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+ '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県',
+ '石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県',
+ '京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県',
+ '山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県',
+ '大分県','宮崎県','鹿児島県','沖縄県'];
+ const text=String(name||'');
+ return prefectures.find(pref=>text.includes(pref))||'都道府県不明';
+}
+async function choosePlaceCandidate(index){
+ const list=window.__placeCandidates||[];
+ const chosen=list[index];
+ if(!chosen)return;
+ const box=document.getElementById('placeCandidates');
+ if(box)box.innerHTML='';
+ if(originMarker&&map)map.removeLayer(originMarker);
+ if(map){originMarker=L.circleMarker([chosen.lat,chosen.lon],{radius:9}).addTo(map).bindPopup(esc(chosen.name)).openPopup();}
+ await searchNearby(chosen.lat,chosen.lon,chosen.name);
+}
+async function searchPlaceByText(){
+ const input=document.getElementById('placeInput');
+ const q=String(input?.value||'').trim();
+ if(!q){showError('検索する国内の場所を入力してください。');return;}
+ if(q.length>100){showError('場所の入力は100文字以内にしてください。');return;}
+ const box=document.getElementById('placeCandidates');
+ if(box)box.innerHTML='';
+ setStatus('🔎 場所を検索しています…');
+ document.getElementById('cards').innerHTML='<div class="loading">📍 入力した場所を地図上で探しています…</div>';
+ try{
+   // 国土地理院の検索結果を候補として表示し、同名地名は都道府県を選べるようにする。
+   const u='https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q);
+   const r=await fetch(u); if(!r.ok)throw 0;
+   const data=await r.json();
+   const results=Array.isArray(data)?data:(data?.results||[]);
+   const candidates=results.map(x=>{
+     const c=x?.geometry?.coordinates||x?.coordinates;
+     const lon=Number(c?.[0]),lat=Number(c?.[1]);
+     const name=x?.properties?.title||x?.properties?.address||x?.properties?.name||q;
+     return {lat,lon,name,prefecture:prefectureFromName(name)};
+   }).filter(x=>isJapanCoord(x.lat,x.lon));
+   // 都道府県名を確認できない施設名などは候補から除外する。
+   // 例：「沼津」で検索した際の「沼津聖霊病院」などは選択肢に表示しない。
+   const prefectureKnown=candidates.filter(x=>x.prefecture!=='都道府県不明');
+   // 同一地点の重複候補を除去
+   const unique=[];
+   for(const c of prefectureKnown){if(!unique.some(v=>Math.abs(v.lat-c.lat)<0.00001&&Math.abs(v.lon-c.lon)<0.00001))unique.push(c);}
+   if(!unique.length)throw 0;
+   window.__placeCandidates=unique;
+   const prefectures=new Set(unique.map(x=>x.prefecture));
+   if(unique.length>1 && (prefectures.size>1 || unique.length<=8)){
+     if(box){
+       box.innerHTML='<div class="locationHint">同じ地名・似た地名の候補が見つかりました。検索したい場所の都道府県を選んでください。</div>'+unique.slice(0,12).map((c,i)=>`<button type="button" class="placeCandidate" data-place-index="${i}"><span><strong>${esc(c.prefecture)}</strong><small>${esc(c.name)}</small></span><span aria-hidden="true">選択 ›</span></button>`).join('');
+       box.querySelectorAll('[data-place-index]').forEach(btn=>btn.addEventListener('click',()=>choosePlaceCandidate(Number(btn.dataset.placeIndex))));
+     }
+     setStatus('候補を選択してください。選択した場所を起点に周辺を検索します。');
+     document.getElementById('cards').innerHTML='';
+     return;
+   }
+   await choosePlaceCandidate(0);
+ }catch(e){
+   if(box)box.innerHTML='';
+   showError('場所を検索できませんでした。市区町村名・駅名・施設名・住所など、もう少し具体的に入力して再検索してください。');
+ }
+}
+document.getElementById('placeSearchBtn')?.addEventListener('click',searchPlaceByText);
+document.getElementById('placeInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')searchPlaceByText();});
+
+if(map){
+ map.on('click',async e=>{
+   const {lat,lng}=e.latlng;
+   if(!isJapanCoord(lat,lng)){setStatus('⚠️ 日本国内の地点を選択してください。');return;}
+   const label='地図で選択した地点';
+   if(originMarker)map.removeLayer(originMarker);
+   originMarker=L.circleMarker([lat,lng],{radius:9}).addTo(map).bindPopup(label).openPopup();
+   await searchNearby(lat,lng,label);
+ });
+}
+function normName(s){return String(s||'').toLowerCase().replace(/[\s　・･,，.．()（）「」『』\[\]【】\-‐‑–—]/g,'').replace(/跡$/,'');}
+function isGenericReligiousName(name,t){
+ const n=String(name||'').replace(/[\s　]/g,'');
+ if(t.amenity!=='place_of_worship' || t.religion!=='shinto') return false;
+ // Generic shrines that exist in many places are not useful as unique historical sites.
+ if(/^(稲荷神社|八幡神社|天満宮|天神社|浅間神社|熊野神社|白山神社|諏訪神社|春日神社|住吉神社|日枝神社|氷川神社|琴平神社|愛宕神社|秋葉神社|八坂神社)$/.test(n)) return true;
+ return false;
+}
+function isMuseum(t){
+ return t.tourism==='museum'||t.tourism==='gallery'||t.amenity==='museum'||!!t.museum||t.artwork_type==='gallery'||t.art_gallery==='yes'||t.building==='museum';
+}
+function museumType(t){
+ if(t.tourism==='gallery'||t.art_gallery==='yes'||t.artwork_type==='gallery') return '美術館・ギャラリー';
+ if(t.museum==='history'||t.museum==='archaeology'||t.tourism==='museum') return '博物館';
+ return '博物館・美術館';
+}
+function officialUrl(t){return t.website||t['contact:website']||t.url||'';}
+function feeText(t){
+ if(t.fee==='no'||t.charge==='0'||t.charge==='無料') return '無料';
+ return t.charge||t.fee||'';
+}
+function extractFeeAmounts(text){
+ const raw=String(text||'').replace(/[,，]/g,'');
+ if(!raw)return [];
+ const amounts=[];
+ // 円表記を優先。無料は0円として扱う。
+ if(/無料/.test(raw)) amounts.push(0);
+ for(const m of raw.matchAll(/(\d{1,6})\s*円/g)) amounts.push(Number(m[1]));
+ // 「\500」等ではなく、料金欄の数値のみを対象にする。
+ return [...new Set(amounts)].filter(n=>Number.isFinite(n)&&n>=0);
+}
+function knownFeeInfo(p){
+ const osm=feeText(p.t||{});
+ const official=p._officialText||'';
+ // 公式サイト全体の数字（年、時刻、所要時間など）を料金と誤認しないよう、料金欄だけを解析する。
+ const officialFees=official?extractOfficialInfo(official).fees:'';
+ const amounts=[...extractFeeAmounts(osm),...extractFeeAmounts(officialFees)];
+ const free=/^(無料|no|0)$/i.test(String(osm).trim()) || /無料/.test(officialFees);
+ if(free) amounts.push(0);
+ const unique=[...new Set(amounts)].sort((a,b)=>a-b);
+ if(!unique.length)return {known:false,amounts:[],min:null,max:null,budgetAmount:null,label:'料金情報なし'};
+ // 予算判定は一般・大人料金を優先し、それが明記されない場合は料金欄の最高額を採用。
+ const generalMatches=[...String(officialFees).matchAll(/(?:一般|大人|成人|通常|入館料|観覧料)[^0-9]{0,25}(\d{1,6})\s*円/g)].map(m=>Number(m[1]));
+ const budgetAmount=generalMatches.length?Math.max(...generalMatches):Math.max(...unique);
+ return {known:true,amounts:unique,min:unique[0],max:unique[unique.length-1],budgetAmount,label:unique.map(n=>n===0?'無料':n.toLocaleString()+'円').join(' / ')};
+}
+function budgetFilterMatches(p){
+ if(budgetLimit==null)return true;
+ const info=knownFeeInfo(p);
+ // 料金が確認できない施設は推測せず除外。一般・大人料金（なければ記載料金の最高額）が予算以内の施設だけ表示。
+ return info.known && info.budgetAmount<=budgetLimit;
+}
+function hoursText(t){return t.opening_hours||t['opening_hours:covid19']||'';}
+async function fetchOfficialText(url){
+ try{
+  if(!url)return '';
+  const clean=url.startsWith('http')?url:'https://'+url;
+  const proxy='https://r.jina.ai/'+clean;
+  const r=await fetch(proxy,{headers:{'Accept':'text/plain'}});
+  if(!r.ok)throw 0;
+  return await r.text();
+ }catch(e){return '';}
+}
+function normalizeOfficialText(s){
+ return String(s||'').replace(/\r/g,'').replace(/\t/g,' ').replace(/[ ]{2,}/g,' ').replace(/\n{3,}/g,'\n').trim();
+}
+function extractSection(text,patterns,nextPatterns){
+ const lines=normalizeOfficialText(text).split('\n').map(x=>x.trim()).filter(Boolean);
+ let start=-1;
+ for(let i=0;i<lines.length;i++){if(patterns.some(p=>p.test(lines[i]))){start=i;break;}}
+ if(start<0)return '';
+ let end=Math.min(lines.length,start+35);
+ if(nextPatterns){for(let i=start+1;i<Math.min(lines.length,start+35);i++){if(nextPatterns.some(p=>p.test(lines[i]))){end=i;break;}}}
+ return lines.slice(start,end).join('\n');
+}
+function extractOfficialInfo(text){
+ text=normalizeOfficialText(text);
+ if(!text)return {hours:'',closed:'',fees:'',raw:''};
+ const hours=extractSection(text,[/開館時間|開館時刻|営業時間|営業時間・開館時間|OPENING HOURS|Hours of Operation/i],[/休館|定休日|入館料|観覧料|料金|ADMISSION|Admission Fee/i]);
+ const closed=extractSection(text,[/休館日|休館|定休日|Closed/i],[/開館|営業時間|入館料|観覧料|料金|ADMISSION|Admission Fee/i]);
+ const fees=extractSection(text,[/入館料|観覧料|料金|入場料|Admission Fee|Admission/i],[/アクセス|交通|開館時間|営業時間|休館日|Closed/i]);
+ return {hours,closed,fees,raw:text};
+}
+function compactOfficialInfo(info){
+ const clean=x=>x.split('\n').slice(0,28).join('\n');
+ return {hours:clean(info.hours),closed:clean(info.closed),fees:clean(info.fees)};
+}
+function firstSentences(text,n=2){
+ const x=String(text||'').replace(/\s+/g,' ').trim();
+ if(!x)return '';
+ const m=x.match(/^.*?[。！？](?:.*?[。！？])?/);
+ return (m?m[0]:x).slice(0,260);
+}
+function eraCategoryFromEra(era){
+ const e=String(era||'');
+ if(/旧石器|縄文|弥生|古墳|飛鳥|奈良|平安/.test(e))return 'ancient';
+ if(/鎌倉|南北朝|室町|戦国/.test(e))return 'medieval';
+ if(/安土桃山|江戸/.test(e))return 'earlymodern';
+ if(/明治|大正/.test(e))return 'modern';
+ if(/昭和|平成|令和/.test(e))return 'contemporary';
+ return 'unknown';
+}
+// 概要本文そのものから時代を判定する。施設名だけでは判定しない。
+function eraCategories(text){
+ const t=String(text||'').replace(/\s+/g,' ');
+ const cats=[];
+ const has=(re)=>re.test(t);
+ // まず明示された時代名・時期表現を拾う
+ if(has(/旧石器|縄文|弥生|古墳時代|飛鳥時代|奈良時代|平安時代/))cats.push('ancient');
+ if(has(/鎌倉時代|南北朝|室町時代|戦国時代|中世/))cats.push('medieval');
+ if(has(/安土桃山|桃山時代|江戸時代|江戸後期|江戸中期|江戸前期|近世/))cats.push('earlymodern');
+ if(has(/明治時代|明治期|大正時代|大正期|近代/))cats.push('modern');
+ if(has(/昭和時代|昭和期|平成|令和|現代/))cats.push('contemporary');
+ // 概要が年だけで説明している場合も、本文中の年代から補助的に判定する
+ const years=[...t.matchAll(/(\d{3,4})年/g)].map(m=>Number(m[1]));
+ if(years.some(y=>y<710))cats.push('ancient');
+ if(years.some(y=>y>=710&&y<1600))cats.push('medieval');
+ if(years.some(y=>y>=1568&&y<1868))cats.push('earlymodern');
+ if(years.some(y=>y>=1868&&y<1945))cats.push('modern');
+ if(years.some(y=>y>=1945))cats.push('contemporary');
+ return [...new Set(cats)];
+}
+function erasIn(text){
+ const t=String(text||'');
+ const rules=[
+  [/旧石器/g,'旧石器時代'],[/縄文/g,'縄文時代'],[/弥生/g,'弥生時代'],[/古墳/g,'古墳時代'],[/飛鳥/g,'飛鳥時代'],[/奈良/g,'奈良時代'],[/平安/g,'平安時代'],
+  [/鎌倉/g,'鎌倉時代'],[/南北朝/g,'南北朝時代'],[/室町/g,'室町時代'],[/戦国/g,'戦国時代'],[/安土桃山|桃山/g,'安土桃山時代'],[/江戸/g,'江戸時代'],
+  [/明治/g,'明治時代'],[/大正/g,'大正時代'],[/昭和/g,'昭和時代'],[/平成/g,'平成'],[/令和/g,'令和']
+ ];
+ const found=[]; for(const [re,label] of rules){if(re.test(t))found.push(label)}
+ return [...new Set(found)].slice(0,5);
+}
+function historyOverview(p){
+ const text=p.w?.text||p.t.description||'';
+ const era=erasIn(text);
+ const type=cleanType(p.t.historic||p.t.heritage||p.t.amenity);
+ let body=firstSentences(text,2);
+ if(!body) body=type+'。';
+ return {era:era.join('・'),body,categories:eraCategories(text)};
+}
+function museumOverview(p,officialText){
+ const base=p.w?.text||p.t.description||'';
+ const type=museumType(p.t);
+ const era=erasIn(base);
+ const lines=normalizeOfficialText(officialText||'').split('\n').map(x=>x.trim()).filter(Boolean);
+ let exhibit='';
+ const patterns=/展示|所蔵|収蔵|コレクション|常設展|収集|作品|資料|文化財|歴史資料|美術作品|考古資料/;
+ for(let i=0;i<lines.length;i++){if(patterns.test(lines[i])){exhibit=lines.slice(i,Math.min(lines.length,i+5)).join(' ');break;}}
+ if(exhibit.length>320) exhibit=exhibit.slice(0,320)+'…';
+ if(!exhibit) exhibit=firstSentences(base,2);
+ return {era:era.join('・'),type,exhibit,categories:eraCategories(base+' '+officialText)};
+}
+async function wikiSearch(name,la,lo){
+ try{
+  const u='https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent('"'+name+'"')+'&srnamespace=0&srlimit=10&format=json&origin=*';
+  const j=await (await fetch(u)).json(); const hits=j.query?.search||[]; const target=normName(name);
+  let best=null;
+  for(const h of hits){
+   const t=normName(h.title);
+   if(t===target || t===target+'跡' || t.replace(/跡$/,'')===target){best=h;break;}
+  }
+  if(!best) return null;
+  const title=best.title;
+  const api='https://ja.wikipedia.org/w/api.php?action=query&prop=coordinates|info&titles='+encodeURIComponent(title)+'&inprop=url&format=json&origin=*';
+  const jj=await (await fetch(api)).json(); const page=Object.values(jj.query?.pages||{})[0];
+  const co=page?.coordinates?.[0];
+  if(!co || typeof co.lat!=='number' || typeof co.lon!=='number') return null;
+  const sourceDistance=hav(la,lo,co.lat,co.lon);
+  // The source itself must point to essentially the same place. This rejects same-name sites elsewhere.
+  if(sourceDistance>0.75) return null;
+  const sum=await fetch('https://ja.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title));
+  if(!sum.ok)return null; const summary=await sum.json();
+  if(!summary.extract) return null;
+  return {title,text:summary.extract,img:summary.thumbnail?.source||'',url:summary.content_urls?.desktop?.page||'',lat:co.lat,lon:co.lon,sourceDistance};
+ }catch(e){return null;}
+}
+async function verifyAndRender(items,lat,lon,label='検索地点'){
+ document.getElementById('status').textContent='史跡と博物館・美術館の情報を照合しています…';
+ const verified=[];
+ // 5件ずつ直列に近い照合を行う方式から、12件ずつの並列照合に変更。
+ for(let i=0;i<items.length;i+=12){
+  const batch=items.slice(i,i+12);
+  const results=await Promise.all(batch.map(async p=>({p,w:await wikiSearch(p.name,p.la,p.lo)})));
+  for(const x of results){
+   if(x.p.kind==='museum'){
+    if(museumVerified(x.p)) verified.push({...x.p,w:x.w});
+   }else if(x.w && x.w.text && x.w.sourceDistance<=0.75){
+    verified.push({...x.p,w:x.w});
+   }
+  }
+  verified.sort((a,b)=>a.d-b.d);
+  allItems=verified;
+  // 最初の照合結果を先に表示し、残りの確認中も画面を利用できるようにする。
+  if(i===0)render(verified,lat,lon);
+ }
+ // 公式サイトの本文は検索時に全施設分取得せず、施設詳細を開いた時点で取得する。
+ verified.sort((a,b)=>a.d-b.d);
+ allItems=verified; currentLat=lat; currentLon=lon; activeEra='all'; document.querySelectorAll('.eraBtn').forEach(b=>b.classList.toggle('active',b.dataset.era==='all'));
+ render(verified,lat,lon);
+}
+function walkEstimateKm(km){
+ const minutes=Math.max(1,Math.round(km*1000/80));
+ if(minutes<60)return '徒歩 約'+minutes+'分';
+ const h=Math.floor(minutes/60),m=minutes%60;
+ return '徒歩 約'+h+'時間'+(m?' '+m+'分':'');
+}
+function decodePolyline6(str){
+ let index=0,lat=0,lon=0,out=[];
+ while(index<str.length){
+  let b,shift=0,result=0;
+  do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+  const dlat=result&1?~(result>>1):(result>>1);lat+=dlat;
+  shift=0;result=0;
+  do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+  const dlon=result&1?~(result>>1):(result>>1);lon+=dlon;
+  out.push([lat/1e6,lon/1e6]);
+ }
+ return out;
+}
+async function walkingTime(lat1,lon1,lat2,lon2){
+ try{
+  const body={locations:[{lat:lat1,lon:lon1},{lat:lat2,lon:lon2}],costing:'pedestrian',units:'kilometers'};
+  const u='https://valhalla1.openstreetmap.de/route?json='+encodeURIComponent(JSON.stringify(body));
+  const r=await fetch(u); if(!r.ok)throw 0; const j=await r.json();
+  const sec=j.trip?.summary?.time, km=j.trip?.summary?.length, shape=j.trip?.legs?.[0]?.shape;
+  if(typeof sec==='number'){
+   const min=Math.max(1,Math.round(sec/60));
+   return {text:'徒歩 約'+min+'分',detail:km!=null?'徒歩ルート 約'+km.toFixed(2)+' km':'',coords:shape?decodePolyline6(shape):null};
+  }
+ }catch(e){}
+ const km=hav(lat1,lon1,lat2,lon2);
+ return {text:walkEstimateKm(km)+'（直線距離からの目安）',detail:'徒歩ルートを取得できないため、80m/分で算出',coords:null};
+}
+function showRoute(coords, fallback){
+ if(!map)return;
+ if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}
+ if(coords&&coords.length>1){
+  routeLayer=L.polyline(coords,{weight:5,opacity:.8}).addTo(map);
+  const group=L.featureGroup([routeLayer]);
+  if(originMarker)group.addLayer(originMarker);
+  map.fitBounds(group.getBounds().pad(.12));
+ }else if(fallback){
+  routeLayer=L.polyline([[currentLat,currentLon],[fallback.lat,fallback.lon]],{weight:4,dashArray:'8 8',opacity:.7}).addTo(map);
+  map.fitBounds(routeLayer.getBounds().pad(.2));
+ }
+}
+
+function museumVerified(p){
+ const t=p.t||{};
+ const official=officialUrl(t);
+ const wikiOk=!!(p.w&&p.w.text&&p.w.sourceDistance<=0.75);
+ const publicInfo=!!(official||t.wikipedia||t.wikidata||t.museum||t.tourism==='museum'||t.tourism==='gallery');
+ return publicInfo && (wikiOk||!!official||!!t.wikipedia||!!t.wikidata);
+}
+
+document.querySelectorAll('.eraBtn').forEach(btn=>btn.addEventListener('click',()=>{
+ activeEra=btn.dataset.era;
+ document.querySelectorAll('.eraBtn').forEach(b=>b.classList.toggle('active',b===btn));
+ if(allItems.length) render(allItems,currentLat,currentLon);
+}));
+document.getElementById('openOnly')?.addEventListener('change',e=>{
+ openOnly=e.target.checked;
+ if(allItems.length) render(allItems,currentLat,currentLon);
+});
+const budgetInput=document.getElementById('budgetInput');
+budgetInput?.addEventListener('input',e=>{
+ const raw=e.target.value.trim();
+ budgetLimit=raw===''?null:Math.max(0,Number(raw));
+ if(!Number.isFinite(budgetLimit))budgetLimit=null;
+ if(allItems.length) render(allItems,currentLat,currentLon);
+});
+
+
+function weekdayJa(d){
+ const a=['日','月','火','水','木','金','土'];
+ return a[d.getDay()];
+}
+function minutesNow(d){
+ return d.getHours()*60+d.getMinutes();
+}
+function parseHm(s){
+ const m=String(s||'').match(/(\d{1,2})(?::(\d{2}))?/);
+ if(!m)return null;
+ return Number(m[1])*60+Number(m[2]||0);
+}
+function normalizeHourText(s){
+ return String(s||'')
+   .replace(/[〜～]/g,'-')
+   .replace(/[：]/g,':')
+   .replace(/\s+/g,' ')
+   .trim();
+}
+function todayOpeningFromText(text,date=new Date()){
+ const raw=normalizeHourText(text);
+ if(!raw)return {known:false,closed:false,open:null,close:null,label:'営業時間情報なし'};
+ const day=weekdayJa(date);
+ const dayNames={日:'日',月:'月',火:'火',水:'水',木:'木',金:'金',土:'土'};
+ let segment=raw;
+ // OSM opening_hours style: Mo-Fr 09:00-17:00; Sa 10:00-18:00
+ const osmDay={月:'Mo',火:'Tu',水:'We',木:'Th',金:'Fr',土:'Sa',日:'Su'}[day];
+ const osmMatch=raw.match(new RegExp('(?:^|;| )((?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?)\\\\s+([^;]+)','i'));
+ if(osmMatch){
+   const ds=osmMatch[1], val=osmMatch[2];
+   const mapDay={Mo:1,Tu:2,We:3,Th:4,Fr:5,Sa:6,Su:0};
+   const parts=ds.split('-').map(x=>mapDay[x]);
+   const inRange=parts.length===1 ? date.getDay()===parts[0] :
+     (parts[0]<=parts[1] ? date.getDay()>=parts[0]&&date.getDay()<=parts[1] : date.getDay()>=parts[0]||date.getDay()<=parts[1]);
+   if(inRange) segment=val;
+   else if(/Mo|Tu|We|Th|Fr|Sa|Su/i.test(raw)) return {known:true,closed:true,open:null,close:null,label:'本日は記載された営業曜日ではありません'};
+ }
+ // Japanese official-page text: "月曜日 9:00～17:00", "月〜金 10:00-18:00"
+ const jp = raw.match(new RegExp('(?:月|火|水|木|金|土|日)(?:曜日)?(?:[〜～-](?:月|火|水|木|金|土|日)(?:曜日)?)?[^0-9]{0,12}(\\\\d{1,2}(?::\\\\d{2})?)\\\\s*[-〜～]\\\\s*(\\\\d{1,2}(?::\\\\d{2})?)'));
+ if(jp){
+   const daysPart=raw.slice(Math.max(0,raw.indexOf(jp[0])-3), raw.indexOf(jp[0])+3);
+   const hasDay=daysPart.includes(day);
+   if(hasDay) segment=jp[0];
+ }
+ const times=[...segment.matchAll(/(\d{1,2}(?::\d{2})?)\s*[-〜～]\s*(\d{1,2}(?::\d{2})?)/g)];
+ if(times.length){
+   const open=parseHm(times[0][1]), close=parseHm(times[0][2]);
+   return {known:true,closed:false,open,close,label:`本日（${day}） ${times[0][1]}～${times[0][2]}`};
+ }
+ if(/休館|休業|closed|定休日/i.test(segment)) return {known:true,closed:true,open:null,close:null,label:`本日（${day}）は休館・休業`};
+ return {known:false,closed:false,open:null,close:null,label:'本日の時間を自動判定できません'};
+}
+function getVisitMinutes(p){
+  // 所要時間は公式サイト・自治体等に明記されたものだけを採用。推測値は入れない。
+  const text=((p.w?.text||'')+' '+(p.t?.description||'')+' '+(p._officialText||''));
+  let m=text.match(/(?:所要時間|見学時間|見学所要時間|観覧所要時間|拝観所要時間|参拝所要時間|滞在時間)[^0-9]{0,25}(\d{1,3})\s*(?:分|minutes?)/i);
+  if(m)return Number(m[1]);
+  m=text.match(/(?:所要時間|見学時間|見学所要時間|観覧所要時間|拝観所要時間|参拝所要時間|滞在時間)[^0-9]{0,25}(\d{1,3})\s*(?:時間|hours?)/i);
+  if(m)return Number(m[1])*60;
+  m=text.match(/(?:所要時間|見学時間|観覧所要時間|拝観所要時間|参拝所要時間)[^0-9]{0,25}(\d{1,3})\s*(?:分|時間)\s*[〜～-]\s*(\d{1,3})\s*(分|時間)/i);
+  if(m){ const unit=m[3]==='時間'?60:1; return {min:Number(m[1])*unit,max:Number(m[2])*unit}; }
+  return null;
+}
+function timeFeasibility(p,walkText,officialText=''){
+ const now=new Date(), visit=getVisitMinutes(p);
+ const wm=String(walkText||'').match(/(\d+)\s*分/), walk=wm?Number(wm[1]):Math.max(1,Math.round(p.d*1000/80));
+ const ci=todayOpeningFromText(officialText||hoursText(p.t)||'',now);
+ const out={known:ci.known,openNow:null,canFinish:null,visit,walk,total:null,label:'営業時間情報なし'};
+ if(visit){ const vmax=typeof visit==='object'?visit.max:visit; out.total=walk+vmax; }
+ if(ci.known){
+   if(ci.closed){out.openNow=false;out.canFinish=false;out.label=ci.label;}
+   else if(ci.open!=null&&ci.close!=null){
+     const n=minutesNow(now); out.openNow=(n>=ci.open&&n<ci.close); out.label=`本日 ${String(Math.floor(ci.open/60)).padStart(2,'0')}:${String(ci.open%60).padStart(2,'0')}～${String(Math.floor(ci.close/60)).padStart(2,'0')}:${String(ci.close%60).padStart(2,'0')}`;
+     if(visit){ let close=ci.close; if(close<=ci.open)close+=1440; out.canFinish=(n+walk+(typeof visit==='object'?visit.max:visit)<=close); }
+   }
+ }
+ return out;
+}
+function formatMinutes(n){return n<60?`${n}分`:`${Math.floor(n/60)}時間${n%60?`${n%60}分`:''}`;}
+function openFilterMatches(p){
+ if(!openOnly)return true;
+ if(p.kind!=='museum') return true; // 史跡は屋外が多く、閉館判定の対象にしない
+ const info=p._timeInfo;
+ return info?.known && info.openNow===true;
+}
+
+function itemMatchesEra(p){
+ if(activeEra==='all')return true;
+ // フィルター対象は、名称ではなく取得した概要・説明文から判定する。
+ const base=(p.w?.text||'')+' '+(p.t.description||'');
+ const cats=eraCategories(base);
+ return cats.includes(activeEra);
+}
+async function render(items,lat,lon){
+ // 時間判定は公式サイト/OSMの営業時間を利用。取得できない施設は「本日営業のみ」フィルターでは除外。
+ items.forEach(p=>{
+   const source=p.kind==='museum' ? (p._officialText||'')+' '+hoursText(p.t) : hoursText(p.t);
+   const estimatedWalk=Math.max(1,Math.round(p.d*1000/80));
+   p._timeInfo=timeFeasibility(p,'徒歩 約'+estimatedWalk+'分',source);
+ });
+ const filtered=items.filter(itemMatchesEra).filter(openFilterMatches).filter(budgetFilterMatches);
+ const budgetLabel=budgetLimit!=null?'・予算'+budgetLimit.toLocaleString()+'円以内':'';
+ const originLabel=currentOriginLabel||'検索地点';
+ document.getElementById('status').textContent=filtered.length+'件表示（全'+items.length+'件中・'+originLabel+'から近い順）'+budgetLabel;
+ const box=document.getElementById('cards');
+ if(!filtered.length){box.innerHTML='<div class="loading">条件に該当する史跡・博物館・美術館が見つかりませんでした。料金情報が確認できない施設は、予算フィルター使用時には表示していません。</div>';return}
+ box.innerHTML='';
+ filtered.slice(0,40).forEach((p,i)=>{
+  const m=map?L.marker([p.la,p.lo]).addTo(map):null;if(m)markers.push(m);
+  const type=p.kind==='museum'?museumType(p.t):cleanType(p.t.historic||p.t.heritage||p.t.amenity);
+  m.bindPopup('<b>'+esc(p.name)+'</b><br>'+esc(type));
+  const card=document.createElement('article');card.className='card';
+  const official=officialUrl(p.t), fee=feeText(p.t), hours=hoursText(p.t);
+  const intro=p.kind==='museum'?'公開情報・施設位置を確認できる博物館／美術館。':'Wikipediaの名称・座標を照合済み。';
+  const ov=p.kind==='museum'?museumOverview(p,''):historyOverview(p);
+  let short='';
+  if(p.kind==='museum'){ short=(ov.era?'時代：'+ov.era+'｜':'')+'展示：'+ov.exhibit; }
+  else { short=(ov.era?'時代：'+ov.era+'｜':'')+ov.body; }
+  const initialVisit=getVisitMinutes(p);
+  const feeInfo=knownFeeInfo(p);
+  const feeLabel=feeInfo.known?'💰 料金：'+feeInfo.label:'💰 料金：公式情報なし';
+  const visitLabel=initialVisit?('約'+(typeof initialVisit==='object'?initialVisit.min+'～'+initialVisit.max+'分':initialVisit+'分')):'公式情報なし';
+  card.innerHTML='<div class="head"><div class="name">'+esc(p.name)+'</div><div class="dist">'+p.d.toFixed(2)+' km</div></div><div class="meta">'+esc(type)+(p.t.start_date?'｜'+esc(p.t.start_date):'')+'</div><div class="walk" data-walk="1">🚶 徒歩時間を計算中…</div><div class="source">'+esc(feeLabel)+' ｜ 👀 見学目安：'+esc(visitLabel)+'</div><div class="overview"><div class="overviewtitle">'+(p.kind==='museum'?'🏛 この施設について':'🏯 この史跡について')+'</div>'+esc(short)+'</div><div class="desc">'+esc(intro)+' クリックすると詳細・写真・開館情報を表示します。</div><div class="more"></div>';
+  card.onclick=async()=>{
+   if(map){map.setView([p.la,p.lo],16);if(m)m.openPopup();}
+   const more=card.querySelector('.more'),desc=card.querySelector('.desc');
+   if(more.classList.contains('open')){more.classList.remove('open');return}
+   more.classList.add('open');more.innerHTML='<div>公開情報を確認しています…</div>';
+   const officialText = p.kind==='museum' ? await fetchOfficialText(official) : '';
+   const officialInfo = compactOfficialInfo(extractOfficialInfo(officialText));
+   const [w,c]=await Promise.all([Promise.resolve(p.w||await wiki(p.name)),commons(p.name)]);
+   desc.textContent=w?.text||p.t.description||'公開情報から詳細な解説を取得できませんでした。';
+   let s='';
+   const walk=await walkingTime(lat,lon,p.la,p.lo);
+   p._officialText=officialText;
+   p._timeInfo=timeFeasibility(p,walk.text,officialText||hoursText(p.t));
+   showRoute(walk.coords,{lat:p.la,lon:p.lo});
+   const walkEl=card.querySelector('[data-walk]'); if(walkEl)walkEl.textContent='🚶 '+walk.text;
+   const detailOv=p.kind==='museum'?museumOverview(p,officialText):historyOverview(p);
+   s+='<div class="officialbox"><div class="officialtitle">⏱️ 今日の時間計画</div><b>🚶 徒歩：約'+esc(String(p._timeInfo.walk))+'分</b><br><b>🏛 見学・滞在の目安：'+esc(p._timeInfo.visit?(typeof p._timeInfo.visit==='object'?('約'+p._timeInfo.visit.min+'～'+p._timeInfo.visit.max+'分'):('約'+p._timeInfo.visit+'分')):'公式情報なし')+'</b><br><b>⏳ 徒歩＋見学：'+esc(p._timeInfo.total!=null?('最長約'+p._timeInfo.total+'分'):'算出不可')+'</b>';
+   if(p._timeInfo.known){
+     if(p._timeInfo.openNow===false) s+='<div class="timeStatus closed">本日は現在、開館・営業していない可能性があります。 '+esc(p._timeInfo.label)+'</div>';
+     else if(p._timeInfo.canFinish===true) s+='<div class="timeStatus">✓ 現在時刻から徒歩＋見学をしても、本日の閉館時刻までに間に合う計算です。<br>'+esc(p._timeInfo.label)+'</div>';
+     else s+='<div class="timeStatus warn">⚠️ 現在時刻から徒歩＋見学をすると、本日の閉館時刻に間に合わない計算です。<br>'+esc(p._timeInfo.label)+'</div>';
+   }else{
+     s+='<div class="timeStatus warn">開館時間を自動判定できないため、閉館に間に合うかは判定できません。</div>';
+   }
+   s+=(walk.detail?'<div class="source">'+esc(walk.detail)+'</div>':'')+'</div>';
+   s+='<div class="overview"><div class="overviewtitle">'+(p.kind==='museum'?'🏛 展示・収蔵内容':'🏯 時代・概要')+'</div>';
+   if(detailOv.era)s+='<div class="era">時代：'+esc(detailOv.era)+'</div>';
+   if(p.kind==='museum')s+='<div class="exhibit">'+esc(detailOv.exhibit||'公開情報から展示内容を確認できませんでした。')+'</div>';
+   else s+='<div>'+esc(detailOv.body)+'</div>';
+   s+='</div>';
+   if(c)s+='<img class="photo" src="'+esc(c)+'" alt="'+esc(p.name)+'の写真">';
+   if(p.kind==='museum'){
+    s+='<div class="officialbox"><div class="officialtitle">🏛 公式サイトから取得した施設情報</div>';
+    if(officialInfo.hours) s+='<b>開館時間：</b><div class="pricegrid">'+esc(officialInfo.hours)+'</div>';
+    else if(hours) s+='<b>開館時間：</b><div class="pricegrid">'+esc(hours)+'</div>';
+    else s+='<b>開館時間：</b>公式サイトから自動取得できませんでした。<br>';
+    if(officialInfo.closed) s+='<b>休館日：</b><div class="pricegrid">'+esc(officialInfo.closed)+'</div>';
+    if(officialInfo.fees) s+='<b>料金：</b><div class="pricegrid">'+esc(officialInfo.fees)+'</div>';
+    else if(fee) s+='<b>料金：</b><div class="pricegrid">'+esc(fee)+'</div>';
+    else s+='<b>料金：</b>公式サイトから自動取得できませんでした。<br>';
+    if(official)s+='<a class="officiallink" href="'+esc(official)+'" target="_blank" rel="noopener">🔗 公式ホームページを開く</a>';
+    s+='</div>';
+    s+='<div class="source">※公式サイトの文章から自動抽出しています。展覧会ごとに料金・時間が変わる場合や、臨時変更がある場合は公式サイトの最新情報も確認してください。</div>';
+   }
+   if(w?.url)s+='<div class="source">詳しい解説：Wikipedia（日本語）｜<a href="'+esc(w.url)+'" target="_blank" rel="noopener">出典ページを開く</a></div>';
+   s+='<div class="source">位置・名称：OpenStreetMap｜解説：Wikipedia照合済み</div>';
+   more.innerHTML=s||'<div class="source">公開画像・解説は見つかりませんでした。</div>';
+  };
+  if(p._timeInfo?.known){
+   const ts=document.createElement('div');
+   ts.className='timeStatus '+(p._timeInfo.canFinish===false?'warn':'');
+   ts.textContent=p._timeInfo.canFinish===true?'✓ 今日の閉館までに間に合う見込み':(p._timeInfo.openNow===false?'本日は現在、開館・営業していない可能性があります':'営業時間を確認してください');
+   card.appendChild(ts);
+  }
+  box.appendChild(card);
+ });
+}
+</script>
+</body></html>
